@@ -2,58 +2,49 @@ from adaptive_hist import bhattacharyya
 import cv2
 import numpy as np
 import caffe
+import sys
+import os
 
 # Test class to extract CNN features from two sample input images
 # and calculates the bhattacharyya given two arbitrary vector inputs and
 # the detected input object/vehicle
-
-
 class googlenet:
     
     def __init__(self, prototxt, model):
-        # self.net = cv2.dnn.readNetFromCaffe(prototxt, model)
-        # Set mean path to respective file
-        
         MEAN_PATH = "ilsvrc_2012_mean.npy"
         mean = np.load(MEAN_PATH).mean(1).mean(1)
-        channel_swap = (2, 1, 0)
-        raw_scale = 255
+        channel_swap = (2, 0, 1)
+        raw_scale = 255.0
+        im_dims = (224, 224)
 
-        # Google Net prototxt specified dimension
-        im_dims = (224, 224) 
+        self.net = caffe.Net(prototxt, model, caffe.TEST)
+        self.transformer = caffe.io.Transformer({'data': self.net.blobs['data'].data.shape})
+        self.transformer.set_mean('data', mean)
+        self.transformer.set_transpose('data', channel_swap)
+        self.transformer.set_raw_scale('data', raw_scale)
         
-        self.classifier = caffe.Classifier(prototxt, model, mean, channel_swap, raw_scale, im_dims);
         caffe.set_mode_cpu()
-
-    # Returns bhattacharya distance between two detected object images
-    def bhattacharyya(self, det_A, det_B):
-        return bhattacharyya(det_A, det_B)
 
     # Returns vector of detected object within image
     def vectorize(self, image_path):
-        """
-        (h, w) = (224, 224)
-        scaleFactor = 0.007843
-        mean = 255.0 / 2
-        swapRB = True
-        blob = cv2.dnn.blobFromImage(frame, scaleFactor, (w, h), mean, swapRB)
         
-        self.net.setInput(blob)
-        pred = self.net.forward()        
-        """
-
         # Selected layer to extract feature from as defined in prototxt
-        LAYER = 'pool5'
-
-        # Feature vector extracted from layer        
+        LAYER = 'pool5'        
+        
         image = caffe.io.load_image(image_path)
-        classifier.predict([image], oversample=False)
-        feature_vec = classifier.blobs[LAYER].data(0).reshape(1, -1)
+        self.net.blobs['data'].data[...] = self.transformer.preprocess('data', image)
+        self.net.forward()
 
-        return feature_vec;
+        # Feature vector extracted from layer
+        return self.net.blobs[LAYER].data[0]        
 
     def analyze(self, img_A_path, img_B_path):
-        # frame_A = cv2.imread(img_A_path)
-        # frame_B = cv2.imread(img_B_path)
+        img_A_vec = self.vectorize(img_A_path)
+        img_B_vec = self.vectorize(img_B_path)
+        return bhattacharyya(img_A_vec, img_B_vec)
 
-        return self.bhattacharyya(self.vectorize(img_A_path), self.vectorize(img_B_path))
+g = googlenet("deploy.prototxt", "googlenet_finetune.caffemodel")
+print(g.analyze("test_cars/car3.jpg", "test_cars/car2.jpg"))
+print(g.analyze("test_cars/car2.jpg", "test_cars/car3.jpg"))
+print(g.analyze("test_cars/car3.jpg", "test_cars/car2.jpg"))
+print(g.analyze("test_cars/car3.jpg", "test_cars/car3.jpg"))
