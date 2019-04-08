@@ -1,9 +1,15 @@
 from adaptive_hist import bhattacharyya
 import cv2
 import numpy as np
-import caffe
 import sys
+
+
 import os
+
+# Suppress Caffe output
+os.environ['GLOG_minloglevel'] = '2'
+
+import caffe
 
 # Test class to extract CNN features from two sample input images
 # and calculates the bhattacharyya given two arbitrary vector inputs and
@@ -22,29 +28,30 @@ class googlenet:
         self.transformer.set_mean('data', mean)
         self.transformer.set_transpose('data', channel_swap)
         self.transformer.set_raw_scale('data', raw_scale)
-        
+
         caffe.set_mode_cpu()
 
     # Returns vector of detected object within image
     def vectorize(self, image_path):
         
         # Selected layer to extract feature from as defined in prototxt
-        LAYER = 'pool5'        
+        LAYER = 'pool5'
         
         image = caffe.io.load_image(image_path)
-        self.net.blobs['data'].data[...] = self.transformer.preprocess('data', image)
+        self.net.blobs['data'].data[0] = self.transformer.preprocess('data', image)
         self.net.forward()
 
         # Feature vector extracted from layer
-        return self.net.blobs[LAYER].data[0]        
+        return self.net.blobs[LAYER].data[0].copy()
 
     def analyze(self, img_A_path, img_B_path):
         img_A_vec = self.vectorize(img_A_path)
         img_B_vec = self.vectorize(img_B_path)
-        return bhattacharyya(img_A_vec, img_B_vec)
+        return bhattacharyya(img_A_vec / sum(img_A_vec), img_B_vec / sum(img_B_vec))
 
 g = googlenet("deploy.prototxt", "googlenet_finetune.caffemodel")
-print(g.analyze("test_cars/car3.jpg", "test_cars/car2.jpg"))
+
+print(g.analyze("test_cars/car1.jpg", "test_cars/car1.jpg"))
+print(g.analyze("test_cars/car1.jpg", "test_cars/car2.jpg"))
 print(g.analyze("test_cars/car2.jpg", "test_cars/car3.jpg"))
-print(g.analyze("test_cars/car3.jpg", "test_cars/car2.jpg"))
-print(g.analyze("test_cars/car3.jpg", "test_cars/car3.jpg"))
+print(g.analyze("test_cars/car1.jpg", "test_cars/car3.jpg"))
