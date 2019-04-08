@@ -2,12 +2,19 @@
 This repository contains code that calculates distances (Bhattacharyya) between feature vectors extracted from neural networks. This respository also stores documentation and files necessary for running/testing the Tensorflow (Darkflow) implementation of YOLOv2's object detection software. The testing shown is run on a specific hardware setup as described in the section below. 
 
 ## Running Feature Extraction
-All the code for feature extraction is contained within the `feature_extraction` folder. \
+All the code for feature extraction is contained within the `feature_extraction` folder.
+
 *NOTE*: This implementation of feature extraction can only be run on a Linux machine. 
 
 #### Required libraries:
-OpenCV-Python, imutils, Scikit-image \
+OpenCV-Python, imutils, Scikit-image
+
 Install by typing `$ pip3 install opencv-python skimage utils`
+
+#### Configuration
+You can specify the layer from which the feature vectors are extracted by changing `googlenet.py`. In the vectorize function, you can specify the `LAYER` parameter; by default, it is set to `'pool5'`.
+
+To specify the images from which the feature vectors are extracted and the Bhattacharyya distance calculated, edit the `googlenet_test.py` file by specifying the image file in the respective function calls. By default, the images are obtained from the `test_cars` directory. 
 
 #### Running
 Type `$ python3 googlenet_test.py`
